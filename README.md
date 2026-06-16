@@ -70,3 +70,42 @@ The system follows a four-tier architecture:
 * Delta OTA Updates
 * CI/CD Integration
 * Kubernetes Deployment
+
+
+## Application Screenshots
+
+### Login Page
+
+![Login](docs/screenshots/login.png)
+
+### Dashboard
+
+![Dashboard](docs/screenshots/Dashboard.png)
+
+### Devices
+
+![Devices](docs/screenshots/Devices.png)
+
+### Device Groups
+
+![Device Groups](docs/screenshots/Devices%20Group.png)
+
+### Firmware Management
+
+![Firmware](docs/screenshots/Firmware.png)
+
+### OTA Updates
+
+![OTA Updates](docs/screenshots/OTA%20Updates.png)
+
+### Logs & Alerts
+
+![Logs](docs/screenshots/Logs%20%26%20Alerts.png)
+
+### User Management
+
+![Users](docs/screenshots/Users.png)
+
+### Settings
+
+![Settings](docs/screenshots/Settings.png)
