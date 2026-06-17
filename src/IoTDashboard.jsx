@@ -21,6 +21,8 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
   BarChart, Bar, Legend
 } from "recharts";
+import { useDashboardData } from "./context/DataContext.jsx";
+import { login as apiLogin, register as apiRegister, logout as apiLogout } from "./api";
 
 // ─────────────────────────────────────────────────────────────
 // THEME CONSTANTS
@@ -50,70 +52,10 @@ const LIGHT = {
 
 // ─────────────────────────────────────────────────────────────
 // DATA
+// (Mock arrays removed — devices, groups, firmware, OTA updates,
+// logs, and users now come from useDashboardData(), backed by
+// the FastAPI + PostgreSQL service. See src/context/DataContext.jsx)
 // ─────────────────────────────────────────────────────────────
-const OTA_CHART_DATA = [
-  { day: "12 May", success: 72, inProgress: 28, failed: 4 },
-  { day: "13 May", success: 85, inProgress: 35, failed: 3 },
-  { day: "14 May", success: 95, inProgress: 42, failed: 5 },
-  { day: "15 May", success: 78, inProgress: 38, failed: 6 },
-  { day: "16 May", success: 88, inProgress: 30, failed: 3 },
-  { day: "17 May", success: 82, inProgress: 25, failed: 4 },
-  { day: "18 May", success: 90, inProgress: 32, failed: 2 },
-];
-const DEVICE_STATUS_DATA = [
-  { name: "Online",   value: 982, color: "#10B981" },
-  { name: "Offline",  value: 198, color: "#EF4444" },
-  { name: "Updating", value: 42,  color: "#F59E0B" },
-  { name: "Error",    value: 26,  color: "#8B5CF6" },
-];
-const DEVICES_BY_GROUP = [
-  { name: "Factory A",  count: 436, pct: 35, color: "#3B82F6" },
-  { name: "Factory B",  count: 312, pct: 25, color: "#10B981" },
-  { name: "Office",     count: 249, pct: 20, color: "#F59E0B" },
-  { name: "Warehouse",  count: 251, pct: 20, color: "#8B5CF6" },
-];
-const INITIAL_DEVICES = [
-  { id: "ESP32-00124", name: "Sensor Node 1",   group: "Factory A",  status: "Online",   firmware: "v1.1.0", ip: "192.168.1.10", lastSeen: "2 min ago",  type: "ESP32" },
-  { id: "ESP32-00125", name: "Gateway 2",       group: "Factory B",  status: "Online",   firmware: "v1.1.0", ip: "192.168.1.11", lastSeen: "3 min ago",  type: "ESP32" },
-  { id: "ESP32-00126", name: "Temp Sensor 3",   group: "Office",     status: "Updating", firmware: "v1.0.9", ip: "192.168.1.12", lastSeen: "Updating",   type: "ESP32" },
-  { id: "ESP32-00127", name: "Humidity Sensor", group: "Warehouse",  status: "Offline",  firmware: "v1.0.8", ip: "192.168.1.13", lastSeen: "15 min ago", type: "ESP32" },
-  { id: "ESP32-00128", name: "Actuator 5",      group: "Factory A",  status: "Error",    firmware: "v1.0.7", ip: "192.168.1.14", lastSeen: "10 min ago", type: "ESP32" },
-  { id: "ESP32-00129", name: "Door Sensor",     group: "Factory B",  status: "Online",   firmware: "v1.1.0", ip: "192.168.1.15", lastSeen: "1 min ago",  type: "ESP32" },
-  { id: "ESP32-00130", name: "R&D Node Alpha",  group: "R&D Lab",    status: "Online",   firmware: "v1.1.0", ip: "192.168.1.16", lastSeen: "5 min ago",  type: "ESP32" },
-  { id: "ESP32-00131", name: "Press Monitor",   group: "Warehouse",  status: "Offline",  firmware: "v1.0.8", ip: "192.168.1.17", lastSeen: "2 hr ago",   type: "ESP32" },
-];
-const FIRMWARE_LIST = [
-  { name: "Firmware v1.1.0", version: "v1.1.0", status: "Active",     devices: "ESP32, ESP8266", uploadedBy: "Admin",  uploadedAt: "5 May 2024, 10:30 AM", size: "1.2 MB", checksum: "a1b2c3d4" },
-  { name: "Firmware v1.0.9", version: "v1.0.9", status: "Active",     devices: "ESP32",          uploadedBy: "Admin",  uploadedAt: "28 Apr 2024, 02:15 PM", size: "1.1 MB", checksum: "e5f6g7h8" },
-  { name: "Firmware v1.0.8", version: "v1.0.8", status: "Active",     devices: "ESP32, ESP8266", uploadedBy: "Admin",  uploadedAt: "20 Apr 2024, 11:45 AM", size: "1.1 MB", checksum: "i9j0k1l2" },
-  { name: "Firmware v1.0.7", version: "v1.0.7", status: "Deprecated", devices: "ESP32",          uploadedBy: "Admin",  uploadedAt: "10 Apr 2024, 08:20 AM", size: "1.0 MB", checksum: "m3n4o5p6" },
-  { name: "Firmware v1.0.6", version: "v1.0.6", status: "Draft",      devices: "ESP8266",        uploadedBy: "Admin",  uploadedAt: "2 Apr 2024,  04:10 PM", size: "0.9 MB", checksum: "q7r8s9t0" },
-];
-const OTA_UPDATES = [
-  { name: "Update v1.1.0 - Factory A", firmware: "v1.1.0", target: "Factory A", status: "Success",     progress: 100, created: "5 May 2024, 10:30 AM", type: "Mandatory" },
-  { name: "Update v1.1.0 - Factory B", firmware: "v1.1.0", target: "Factory B", status: "In Progress", progress: 65,  created: "5 May 2024, 09:15 AM", type: "Mandatory" },
-  { name: "Office Devices Update",     firmware: "v1.0.9", target: "Office",    status: "Success",     progress: 100, created: "4 May 2024, 04:20 PM", type: "Optional"  },
-  { name: "Warehouse Update",          firmware: "v1.0.8", target: "Warehouse", status: "Failed",      progress: 35,  created: "4 May 2024, 11:10 AM", type: "Mandatory" },
-  { name: "R&D Lab Update",            firmware: "v1.1.0", target: "R&D Lab",   status: "In Progress", progress: 40,  created: "3 May 2024, 02:30 PM", type: "Optional"  },
-];
-const LOGS = [
-  { level: "INFO",  time: "18 May 10:32:01", source: "MQTT Broker",    msg: "Device ESP32-00124 connected on topic /iot/factory-a/telemetry" },
-  { level: "INFO",  time: "18 May 10:31:47", source: "OTA Service",    msg: "Firmware v1.1.0 payload delivery started for Factory B group" },
-  { level: "WARN",  time: "18 May 10:30:15", source: "FastAPI",        msg: "High latency detected on /api/v1/devices/status endpoint (>250ms)" },
-  { level: "ERROR", time: "18 May 10:29:44", source: "OTA Service",    msg: "Checksum mismatch for ESP32-00128. Aborting update, rolling back." },
-  { level: "INFO",  time: "18 May 10:28:30", source: "Auth Service",   msg: "Admin user logged in from IP 192.168.1.1" },
-  { level: "WARN",  time: "18 May 10:27:05", source: "Device Manager", msg: "ESP32-00127 heartbeat timeout exceeded 300s threshold" },
-  { level: "INFO",  time: "18 May 10:26:00", source: "MQTT Broker",    msg: "Bi-directional routing verified for all 982 online devices" },
-  { level: "ERROR", time: "18 May 10:25:12", source: "Database",       msg: "Replication lag on MongoDB replica set exceeded 500ms" },
-  { level: "INFO",  time: "18 May 10:24:00", source: "Scheduler",      msg: "OTA rollout job scheduled for Warehouse group at 02:00 UTC" },
-  { level: "INFO",  time: "18 May 10:23:30", source: "Auth Service",   msg: "New user 'operator_raj' created with Operator role" },
-];
-const TEAM_MEMBERS = [
-  { name: "Aman Bansal",     id: "221020124001", role: "Admin",      email: "aman@iot.com",    status: "Online",  dept: "Engineering",   lastLogin: "5 May 2024" },
-  { name: "Bharat Yogansh",  id: "221020124003", role: "Super Admin",email: "bharat@iot.com",  status: "Online",  dept: "Engineering",   lastLogin: "5 May 2024" },
-  { name: "Natasha",         id: "221020124006", role: "Manager",    email: "natasha@iot.com", status: "Offline", dept: "Operations",    lastLogin: "4 May 2024" },
-  { name: "Vishwajeet Kumar", id: "221020124009", role: "Operator",  email: "vishwa@iot.com",  status: "Online",  dept: "Field Ops",     lastLogin: "5 May 2024" },
-];
 const NAV_ITEMS = [
   { id: "dashboard",      label: "Dashboard",     icon: LayoutDashboard },
   { id: "devices",        label: "Devices",        icon: Cpu },
@@ -125,15 +67,22 @@ const NAV_ITEMS = [
   { id: "settings",       label: "Settings",       icon: Settings },
 ];
 
-// Search suggestion pools
-const SEARCH_SUGGESTIONS = [
-  ...INITIAL_DEVICES.map(d => d.id),
-  ...INITIAL_DEVICES.map(d => d.name),
-  "Factory A", "Factory B", "Office", "Warehouse", "R&D Lab", "Remote Sites",
-  "v1.1.0", "v1.0.9", "v1.0.8", "v1.0.7",
-  "Online", "Offline", "Updating", "Error",
-  "ESP32", "ESP8266", "MQTT", "OTA", "Firmware",
-];
+// Built fresh each render from live data instead of a static module
+// constant, since devices/firmware/groups now change at runtime.
+function buildSearchSuggestions(devices) {
+  return [
+    ...devices.map(d => d.id),
+    ...devices.map(d => d.name),
+    "Factory A", "Factory B", "Office", "Warehouse", "R&D Lab", "Remote Sites",
+    "v1.1.0", "v1.0.9", "v1.0.8", "v1.0.7",
+    "Online", "Offline", "Updating", "Error",
+    "ESP32", "ESP8266", "MQTT", "OTA", "Firmware",
+  ];
+}
+
+// Lucide icon lookup for groups — backend sends the icon as a string
+// key (e.g. "Factory"), this maps it back to the actual component.
+const GROUP_ICONS = { Factory, Building2, Warehouse, Briefcase, Globe, Layers };
 
 // ─────────────────────────────────────────────────────────────
 // SEARCH DROPDOWN HOOK
@@ -336,7 +285,10 @@ function SearchBar({ placeholder, suggestions, value, onChange, onSelect, t, cla
 // ─────────────────────────────────────────────────────────────
 function AuthPage({ onLogin }) {
   const [view, setView] = useState("login");
-  const [form, setForm] = useState({ email: "admin@iot.com", password: "admin123", name: "", confirm: "" });
+  const [form, setForm] = useState({
+    email: "bharat.yogansh@rce.ac.in", password: "demo1234", name: "", confirm: "",
+    studentId: "", department: "Engineering",
+  });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
@@ -345,9 +297,19 @@ function AuthPage({ onLogin }) {
     setErr("");
     if (view === "register" && form.password !== form.confirm) { setErr("Passwords do not match."); return; }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setLoading(false);
-    onLogin({ name: form.name || "Admin", email: form.email });
+    try {
+      const user = view === "login"
+        ? await apiLogin(form.email, form.password)
+        : await apiRegister({
+            name: form.name, email: form.email, password: form.password,
+            studentId: form.studentId, department: form.department,
+          });
+      onLogin(user);
+    } catch (err) {
+      setErr(err.message.replace(/^\d+\s/, "")); // strip leading "401 "/"409 " status code
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -380,7 +342,20 @@ function AuthPage({ onLogin }) {
 
           <form onSubmit={handle} className="space-y-4">
             {view === "register" && (
-              <Input label="Full Name" icon={User} placeholder="Enter your full name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+              <>
+                <Input label="Full Name" icon={User} placeholder="Enter your full name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Student ID" icon={Tag} placeholder="e.g. 221020124003" value={form.studentId} onChange={e => setForm({...form, studentId: e.target.value})} />
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5 text-slate-400">Department</label>
+                    <select value={form.department} onChange={e => setForm({...form, department: e.target.value})}
+                      className="w-full rounded-lg text-sm outline-none px-3 py-2.5 bg-white/5 border border-white/10 text-white">
+                      <option>Engineering</option><option>Operations</option><option>Field Ops</option>
+                      <option>Management</option><option>R&D</option>
+                    </select>
+                  </div>
+                </div>
+              </>
             )}
             <Input label="Email Address" icon={Mail} type="email" placeholder="admin@iot.com" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
             <Input label="Password" icon={Lock} type="password" placeholder="Enter your password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
@@ -409,7 +384,7 @@ function AuthPage({ onLogin }) {
 
           {view === "login" && (
             <div className="mt-4 p-3 bg-blue-500/5 border border-blue-500/15 rounded-lg">
-              <p className="text-xs text-slate-500 text-center">Demo: <span className="text-blue-400 font-mono">admin@iot.com</span> / <span className="text-blue-400 font-mono">admin123</span></p>
+              <p className="text-xs text-slate-500 text-center">Demo: <span className="text-blue-400 font-mono">bharat.yogansh@rce.ac.in</span> / <span className="text-blue-400 font-mono">demo1234</span></p>
             </div>
           )}
         </div>
@@ -501,15 +476,18 @@ function DonutChart({ data, total, t }) {
 function DashboardPage({ onAbout, setActiveNav, t }) {
   const T = t || DARK;
   const isDark = T === DARK;
+  const { summary, devices, otaUpdates, logs } = useDashboardData();
+  const { stats, deviceStatusData, devicesByGroup, otaChartData } = summary;
+  const recentAlerts = logs.filter(l => l.level === "ERROR" || l.level === "WARN").slice(0, 4);
   return (
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <StatCard label="Total Devices"  value="1,248" trend="up"   trendVal="↑12.5%" icon={Cpu}    color="#3B82F6" t={T}/>
-        <StatCard label="Online"         value="982"   trend="up"   trendVal="↑8.3%"  icon={Wifi}   color="#10B981" t={T}/>
-        <StatCard label="Total Firmware" value="24"    trend="flat" trendVal="No change" icon={Microchip} color="#F59E0B" t={T}/>
-        <StatCard label="OTA Updates"    value="156"   trend="up"   trendVal="↑18.7%" icon={Upload}  color="#8B5CF6" t={T}/>
-        <StatCard label="Active Alerts"  value="7"     trend="down" trendVal="↓12.5%" icon={Bell}    color="#EF4444" t={T}/>
+        <StatCard label="Total Devices"  value={stats.totalDevices.toLocaleString()} trend="up"   trendVal="↑12.5%" icon={Cpu}    color="#3B82F6" t={T}/>
+        <StatCard label="Online"         value={stats.online.toLocaleString()}   trend="up"   trendVal="↑8.3%"  icon={Wifi}   color="#10B981" t={T}/>
+        <StatCard label="Total Firmware" value={stats.totalFirmware.toLocaleString()}    trend="flat" trendVal="No change" icon={Microchip} color="#F59E0B" t={T}/>
+        <StatCard label="OTA Updates"    value={stats.otaUpdates.toLocaleString()}   trend="up"   trendVal="↑18.7%" icon={Upload}  color="#8B5CF6" t={T}/>
+        <StatCard label="Active Alerts"  value={stats.activeAlerts.toLocaleString()}     trend="down" trendVal="↓12.5%" icon={Bell}    color="#EF4444" t={T}/>
       </div>
 
       {/* Charts Row */}
@@ -519,7 +497,7 @@ function DashboardPage({ onAbout, setActiveNav, t }) {
             <h3 className="font-bold text-sm" style={{ color: T.text }}>Device Status</h3>
             <span className="text-xs px-2 py-1 rounded-lg" style={{ color: T.muted, background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}>This Month</span>
           </div>
-          <DonutChart data={DEVICE_STATUS_DATA} total={1248} t={T}/>
+          <DonutChart data={deviceStatusData} total={stats.totalDevices} t={T}/>
           {/* Req 3: "See All" → devices page */}
           <button onClick={() => setActiveNav("devices")} className="mt-4 text-xs flex items-center gap-1 transition-colors hover:gap-2" style={{ color: T.accent }}>
             View all devices <ArrowRight size={11}/>
@@ -532,7 +510,7 @@ function DashboardPage({ onAbout, setActiveNav, t }) {
             <span className="text-xs px-2 py-1 rounded-lg" style={{ color: T.muted, background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}>This Week</span>
           </div>
           <ResponsiveContainer width="100%" height={175}>
-            <AreaChart data={OTA_CHART_DATA} margin={{top:5,right:5,left:-20,bottom:0}}>
+            <AreaChart data={otaChartData} margin={{top:5,right:5,left:-20,bottom:0}}>
               <defs>
                 {[["gS","#10B981"],["gP","#F59E0B"],["gF","#EF4444"]].map(([id,c])=>(
                   <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
@@ -566,16 +544,16 @@ function DashboardPage({ onAbout, setActiveNav, t }) {
           <h3 className="font-bold text-sm mb-4" style={{ color: T.text }}>Devices by Group</h3>
           <div className="relative mb-3" style={{height:120}}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart><Pie data={DEVICES_BY_GROUP} cx="50%" cy="50%" innerRadius={38} outerRadius={55} paddingAngle={3} dataKey="count" stroke="none">
-                {DEVICES_BY_GROUP.map((e,i)=><Cell key={i} fill={e.color}/>)}
+              <PieChart><Pie data={devicesByGroup} cx="50%" cy="50%" innerRadius={38} outerRadius={55} paddingAngle={3} dataKey="count" stroke="none">
+                {devicesByGroup.map((e,i)=><Cell key={i} fill={e.color}/>)}
               </Pie></PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-black" style={{ color: T.text }}>1,248</span>
+              <span className="text-xl font-black" style={{ color: T.text }}>{stats.totalDevices.toLocaleString()}</span>
               <span className="text-xs" style={{ color: T.muted }}>Total</span>
             </div>
           </div>
-          {DEVICES_BY_GROUP.map(d=>(
+          {devicesByGroup.map(d=>(
             <div key={d.name} className="flex items-center gap-2 mb-2 text-xs">
               <span className="w-2 h-2 rounded-full" style={{background:d.color}}/>
               <span className="flex-1" style={{ color: T.muted }}>{d.name} ({d.pct}%)</span>
@@ -590,20 +568,16 @@ function DashboardPage({ onAbout, setActiveNav, t }) {
             <span className="bg-red-500/15 text-red-400 text-xs font-bold px-2 py-0.5 rounded-full border border-red-500/20">7</span>
           </div>
           <div className="space-y-2.5">
-            {[
-              {msg:"ESP32-00128 in Error state", sev:"error", t:"10m"},
-              {msg:"Warehouse update failed (v1.0.8)", sev:"error", t:"35m"},
-              {msg:"198 devices currently offline", sev:"warn", t:"1h"},
-              {msg:"Factory B OTA 65% in progress", sev:"info", t:"12m"},
-            ].map((a,i)=>(
+            {recentAlerts.map((a,i)=>(
               <div key={i} className="flex gap-2.5 rounded-lg px-3 py-2.5" style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
-                <AlertTriangle size={13} className={`mt-0.5 flex-shrink-0 ${a.sev==="error"?"text-red-400":a.sev==="warn"?"text-amber-400":"text-blue-400"}`}/>
+                <AlertTriangle size={13} className={`mt-0.5 flex-shrink-0 ${a.level==="ERROR"?"text-red-400":"text-amber-400"}`}/>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs leading-snug" style={{ color: T.subtext }}>{a.msg}</p>
-                  <p className="text-xs mt-0.5" style={{ color: T.muted }}>{a.t} ago</p>
+                  <p className="text-xs mt-0.5" style={{ color: T.muted }}>{a.source} · {a.time}</p>
                 </div>
               </div>
             ))}
+            {recentAlerts.length===0 && <p className="text-xs" style={{ color: T.muted }}>No active alerts.</p>}
           </div>
         </Card>
 
@@ -652,7 +626,7 @@ function DashboardPage({ onAbout, setActiveNav, t }) {
                 </tr>
               </thead>
               <tbody>
-                {INITIAL_DEVICES.slice(0,5).map((d,i)=>(
+                {devices.slice(0,5).map((d,i)=>(
                   <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid ${T.divider}` }}
                     onMouseEnter={e => e.currentTarget.style.background = T.tableHover}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -681,8 +655,8 @@ function DashboardPage({ onAbout, setActiveNav, t }) {
             </button>
           </div>
           <div style={{ borderTop: "none" }}>
-            {OTA_UPDATES.map((u,i)=>(
-              <div key={i} className="flex items-center gap-3 px-5 py-3.5 transition-colors" style={{ borderBottom: i < OTA_UPDATES.length - 1 ? `1px solid ${T.divider}` : "none" }}
+            {otaUpdates.slice(0,5).map((u,i)=>(
+              <div key={i} className="flex items-center gap-3 px-5 py-3.5 transition-colors" style={{ borderBottom: i < Math.min(otaUpdates.length,5) - 1 ? `1px solid ${T.divider}` : "none" }}
                 onMouseEnter={e => e.currentTarget.style.background = T.tableHover}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${u.status==="Success"?"bg-emerald-500/15":u.status==="In Progress"?"bg-blue-500/15":"bg-red-500/15"}`}>
@@ -710,7 +684,7 @@ function DashboardPage({ onAbout, setActiveNav, t }) {
 function DevicesPage({ t }) {
   const T = t || DARK;
   const isDark = T === DARK;
-  const [devices, setDevices] = useState(INITIAL_DEVICES);
+  const { devices, addDevice: addDeviceApi, removeDevice } = useDashboardData();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [showAdd, setShowAdd] = useState(false);
@@ -723,9 +697,9 @@ function DevicesPage({ t }) {
     return matchSearch && matchFilter;
   });
 
-  const addDevice = () => {
+  const handleAddDevice = async () => {
     if (!newDev.id) return;
-    setDevices([...devices, { ...newDev, status:"Online", lastSeen:"Just now" }]);
+    await addDeviceApi(newDev);
     setShowAdd(false);
     setNewDev({ id:"", name:"", group:"Factory A", type:"ESP32", ip:"", firmware:"v1.1.0" });
   };
@@ -736,7 +710,7 @@ function DevicesPage({ t }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[["Total Devices","1,248","#3B82F6",Cpu],["Online","982","#10B981",Wifi],["Offline","198","#EF4444",WifiOff],["Error","26","#8B5CF6",AlertCircle]].map(([l,v,c,Icon])=>(
+        {[["Total Devices",counts.All,"#3B82F6",Cpu],["Online",counts.Online,"#10B981",Wifi],["Offline",counts.Offline,"#EF4444",WifiOff],["Error",counts.Error,"#8B5CF6",AlertCircle]].map(([l,v,c,Icon])=>(
           <Card key={l} className="p-4 flex items-center gap-3" t={T}>
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{background:`${c}22`}}>
               <Icon size={16} style={{color:c}}/>
@@ -754,7 +728,7 @@ function DevicesPage({ t }) {
           {/* Req 2: Device search with suggestions dropdown */}
           <SearchBar
             placeholder="Search devices by ID, name or group..."
-            suggestions={SEARCH_SUGGESTIONS}
+            suggestions={buildSearchSuggestions(devices)}
             value={search}
             onChange={setSearch}
             onSelect={setSearch}
@@ -800,7 +774,7 @@ function DevicesPage({ t }) {
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-blue-500/20" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}><Eye size={12} style={{ color: T.muted }}/></button>
                       <button className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-amber-500/20" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}><Edit2 size={12} style={{ color: T.muted }}/></button>
-                      <button onClick={()=>setDevices(devices.filter((_,j)=>j!==i))} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500/20" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}><Trash2 size={12} className="text-red-400"/></button>
+                      <button onClick={()=>removeDevice(d.id)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500/20" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}><Trash2 size={12} className="text-red-400"/></button>
                     </div>
                   </td>
                 </tr>
@@ -845,7 +819,7 @@ function DevicesPage({ t }) {
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={()=>setShowAdd(false)} className="flex-1 py-2.5 rounded-lg text-sm transition-colors" style={{ border: `1px solid ${T.border}`, color: T.muted }}>Cancel</button>
-              <button onClick={addDevice} className="flex-1 py-2.5 rounded-lg text-sm text-white font-bold transition-all shadow-lg" style={{ background: T.accent }}>Create Device</button>
+              <button onClick={handleAddDevice} className="flex-1 py-2.5 rounded-lg text-sm text-white font-bold transition-all shadow-lg" style={{ background: T.accent }}>Create Device</button>
             </div>
           </div>
         </Modal>
@@ -861,22 +835,37 @@ function DeviceGroupsPage({ t }) {
   const T = t || DARK;
   const isDark = T === DARK;
   const [showAdd, setShowAdd] = useState(false);
-  const groups = [
-    { name:"Factory A",   icon:Factory,   color:"#3B82F6", total:436, online:342, offline:94,  updating:18, desc:"Manufacturing unit – primary IoT deployment zone",    tags:["production","ESP32","line-A"] },
-    { name:"Factory B",   icon:Factory,   color:"#10B981", total:312, online:250, offline:62,  updating:12, desc:"Secondary manufacturing with high sensor density",     tags:["production","ESP32","line-B"] },
-    { name:"Office",      icon:Building2, color:"#F59E0B", total:249, online:210, offline:39,  updating:4,  desc:"Office environment monitoring & access devices",       tags:["indoor","climate","access"] },
-    { name:"Warehouse",   icon:Warehouse, color:"#8B5CF6", total:251, online:180, offline:71,  updating:7,  desc:"Warehouse tracking and environmental sensors",         tags:["logistics","tracking"] },
-    { name:"R&D Lab",     icon:Briefcase, color:"#EC4899", total:128, online:110, offline:18,  updating:3,  desc:"Research and development experimental nodes",         tags:["experimental","prototype"] },
-    { name:"Remote Sites",icon:Globe,     color:"#14B8A6", total:122, online:90,  offline:32,  updating:2,  desc:"Remote location monitoring outposts",                 tags:["remote","field"] },
-  ];
+  const { groups, addGroup } = useDashboardData();
+  const totalDevices = groups.reduce((sum,g)=>sum+g.total,0);
   const selectStyle = { background: T.input, border: `1px solid ${T.border}`, color: T.text };
+
+  const GROUP_TYPE_TO_ICON = { Production: "Factory", Office: "Building2", Warehouse: "Warehouse", "R&D": "Briefcase", Remote: "Globe" };
+  const [newGroup, setNewGroup] = useState({ name: "", description: "", type: "Production" });
+  const [groupError, setGroupError] = useState("");
+
+  const handleAddGroup = async () => {
+    if (!newGroup.name) { setGroupError("Group name is required"); return; }
+    try {
+      setGroupError("");
+      await addGroup({
+        name: newGroup.name,
+        description: newGroup.description,
+        icon: GROUP_TYPE_TO_ICON[newGroup.type] || "Layers",
+        tags: [newGroup.type.toLowerCase()],
+      });
+      setShowAdd(false);
+      setNewGroup({ name: "", description: "", type: "Production" });
+    } catch (err) {
+      setGroupError(err.message);
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-black text-xl" style={{ color: T.text }}>Device Groups</h2>
-          <p className="text-sm mt-0.5" style={{ color: T.muted }}>6 groups · 1,498 total devices</p>
+          <p className="text-sm mt-0.5" style={{ color: T.muted }}>{groups.length} groups · {totalDevices.toLocaleString()} total devices</p>
         </div>
         <button onClick={()=>setShowAdd(true)} className="flex items-center gap-2 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-lg" style={{ background: T.accent }}>
           <Plus size={13}/> Add Group
@@ -884,12 +873,14 @@ function DeviceGroupsPage({ t }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {groups.map(g=>(
+        {groups.map(g=>{
+          const Icon = GROUP_ICONS[g.icon] || Layers;
+          return (
           <Card key={g.name} className="p-5 transition-all duration-300 hover:-translate-y-0.5 group cursor-pointer" t={T}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:`${g.color}22`}}>
-                  <g.icon size={18} style={{color:g.color}}/>
+                  <Icon size={18} style={{color:g.color}}/>
                 </div>
                 <div>
                   <h3 className="font-bold text-sm" style={{ color: T.text }}>{g.name}</h3>
@@ -903,10 +894,10 @@ function DeviceGroupsPage({ t }) {
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-emerald-400 font-medium">Online</span>
-                  <span style={{ color: T.muted }}>{g.online} ({((g.online/g.total)*100).toFixed(0)}%)</span>
+                  <span style={{ color: T.muted }}>{g.online} ({g.total ? ((g.online/g.total)*100).toFixed(0) : 0}%)</span>
                 </div>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)" }}>
-                  <div className="h-full bg-emerald-400 rounded-full" style={{width:`${(g.online/g.total)*100}%`}}/>
+                  <div className="h-full bg-emerald-400 rounded-full" style={{width:`${g.total ? (g.online/g.total)*100 : 0}%`}}/>
                 </div>
               </div>
               <div className="flex gap-4 text-xs" style={{ color: T.muted }}>
@@ -920,21 +911,21 @@ function DeviceGroupsPage({ t }) {
               ))}
             </div>
           </Card>
-        ))}
+        );})}
       </div>
 
       {showAdd && (
         <Modal title="Add New Group" onClose={()=>setShowAdd(false)} t={T}>
           <div className="p-6 space-y-4">
-            <Input label="Group Name *" icon={Tag} placeholder="e.g. Production Line C" t={T}/>
+            <Input label="Group Name *" icon={Tag} placeholder="e.g. Production Line C" value={newGroup.name} onChange={e=>setNewGroup({...newGroup, name:e.target.value})} t={T}/>
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: T.muted }}>Description</label>
-              <textarea className="w-full rounded-lg text-sm outline-none px-3 py-2.5 resize-none" rows={3} placeholder="Brief description of this group..." style={{ background: T.input, border: `1px solid ${T.border}`, color: T.text }}/>
+              <textarea value={newGroup.description} onChange={e=>setNewGroup({...newGroup, description:e.target.value})} className="w-full rounded-lg text-sm outline-none px-3 py-2.5 resize-none" rows={3} placeholder="Brief description of this group..." style={{ background: T.input, border: `1px solid ${T.border}`, color: T.text }}/>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: T.muted }}>Group Type</label>
-                <select className="w-full rounded-lg text-sm outline-none px-3 py-2.5" style={selectStyle}>
+                <select value={newGroup.type} onChange={e=>setNewGroup({...newGroup, type:e.target.value})} className="w-full rounded-lg text-sm outline-none px-3 py-2.5" style={selectStyle}>
                   <option>Production</option><option>Office</option><option>Warehouse</option><option>R&D</option><option>Remote</option>
                 </select>
               </div>
@@ -945,9 +936,10 @@ function DeviceGroupsPage({ t }) {
                 </select>
               </div>
             </div>
+            {groupError && <p className="text-xs text-red-400">{groupError}</p>}
             <div className="flex gap-3 pt-2">
               <button onClick={()=>setShowAdd(false)} className="flex-1 py-2.5 rounded-lg text-sm transition-colors" style={{ border: `1px solid ${T.border}`, color: T.muted }}>Cancel</button>
-              <button onClick={()=>setShowAdd(false)} className="flex-1 py-2.5 rounded-lg text-sm text-white font-bold transition-all" style={{ background: T.accent }}>Create Group</button>
+              <button onClick={handleAddGroup} className="flex-1 py-2.5 rounded-lg text-sm text-white font-bold transition-all" style={{ background: T.accent }}>Create Group</button>
             </div>
           </div>
         </Modal>
@@ -962,25 +954,43 @@ function DeviceGroupsPage({ t }) {
 function FirmwarePage({ t }) {
   const T = t || DARK;
   const isDark = T === DARK;
+  const { firmware, addFirmwareFile } = useDashboardData();
   const [showUpload, setShowUpload] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
+  const [version, setVersion] = useState("");
+  const [deviceType, setDeviceType] = useState("ESP32");
   const [uploading, setUploading] = useState(false);
   const [uploadDone, setUploadDone] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const selectStyle = { background: T.input, border: `1px solid ${T.border}`, color: T.text };
 
   const handleUpload = async () => {
+    if (!uploadFile || !version) { setUploadError("File and version are required"); return; }
+    setUploadError("");
     setUploading(true);
-    await new Promise(r=>setTimeout(r,2000));
-    setUploading(false);
-    setUploadDone(true);
-    setTimeout(()=>{ setShowUpload(false); setUploadDone(false); setUploadFile(null); },1500);
+    try {
+      await addFirmwareFile(uploadFile, { version, compatibleDevices: deviceType });
+      setUploading(false);
+      setUploadDone(true);
+      setTimeout(()=>{ setShowUpload(false); setUploadDone(false); setUploadFile(null); setVersion(""); },1500);
+    } catch (err) {
+      setUploading(false);
+      setUploadError(err.message);
+    }
+  };
+
+  const counts = {
+    total: firmware.length,
+    active: firmware.filter(f=>f.status==="Active").length,
+    deprecated: firmware.filter(f=>f.status==="Deprecated").length,
+    draft: firmware.filter(f=>f.status==="Draft").length,
   };
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[["Total Firmware","24","#3B82F6",Package],["Active","8","#10B981",CheckCircle2],["Deprecated","4","#EF4444",XCircle],["Drafts","6","#94A3B8",FileText]].map(([l,v,c,Icon])=>(
+        {[["Total Firmware",counts.total,"#3B82F6",Package],["Active",counts.active,"#10B981",CheckCircle2],["Deprecated",counts.deprecated,"#EF4444",XCircle],["Drafts",counts.draft,"#94A3B8",FileText]].map(([l,v,c,Icon])=>(
           <Card key={l} className="p-4 flex items-center gap-3" t={T}>
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{background:`${c}22`}}><Icon size={16} style={{color:c}}/></div>
             <div><p className="text-xs" style={{ color: T.muted }}>{l}</p><p className="text-xl font-black" style={{ color: T.text }}>{v}</p></div>
@@ -1005,7 +1015,7 @@ function FirmwarePage({ t }) {
               </tr>
             </thead>
             <tbody>
-              {FIRMWARE_LIST.map((f,i)=>(
+              {firmware.map((f,i)=>(
                 <tr key={i} className="transition-colors group" style={{ borderBottom: `1px solid ${T.divider}` }}
                   onMouseEnter={e => e.currentTarget.style.background = T.tableHover}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -1059,19 +1069,20 @@ function FirmwarePage({ t }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input label="Firmware Name *" icon={Package} placeholder="e.g. Firmware v1.2.0" t={T}/>
-              <Input label="Version *" icon={Tag} placeholder="e.g. v1.2.0" t={T}/>
+              <Input label="Version *" icon={Tag} placeholder="e.g. v1.2.0" value={version} onChange={e=>setVersion(e.target.value)} t={T}/>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: T.muted }}>Device Type / Model</label>
-                <select className="w-full rounded-lg text-sm outline-none px-3 py-2.5" style={selectStyle}>
+                <select value={deviceType} onChange={e=>setDeviceType(e.target.value)} className="w-full rounded-lg text-sm outline-none px-3 py-2.5" style={selectStyle}>
                   <option>ESP32</option><option>ESP8266</option><option>Arduino</option>
                 </select>
               </div>
               <Input label="Release Notes" icon={FileText} placeholder="Brief release notes (optional)" t={T}/>
             </div>
+            {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
             <div className="flex gap-3">
-              <button onClick={()=>{setShowUpload(false);setUploadFile(null);}} className="flex-1 py-2.5 rounded-lg text-sm transition-colors" style={{ border: `1px solid ${T.border}`, color: T.muted }}>Cancel</button>
+              <button onClick={()=>{setShowUpload(false);setUploadFile(null);setUploadError("");}} className="flex-1 py-2.5 rounded-lg text-sm transition-colors" style={{ border: `1px solid ${T.border}`, color: T.muted }}>Cancel</button>
               <button onClick={handleUpload} disabled={uploading||uploadDone} className="flex-1 py-2.5 rounded-lg text-sm text-white font-bold transition-all flex items-center justify-center gap-2 shadow-lg" style={{ background: T.accent }}>
                 {uploadDone ? <><CheckCircle2 size={14}/> Uploaded!</> : uploading ? <><RefreshCw size={14} className="animate-spin"/> Uploading...</> : <><UploadCloud size={14}/> Upload Firmware</>}
               </button>
@@ -1089,14 +1100,22 @@ function FirmwarePage({ t }) {
 function OTAUpdatesPage({ t }) {
   const T = t || DARK;
   const isDark = T === DARK;
-  const [updates, setUpdates] = useState(OTA_UPDATES);
+  const { otaUpdates: updates, addOtaUpdate, setOtaStatus } = useDashboardData();
   const [showCreate, setShowCreate] = useState(false);
   const [newUpdate, setNewUpdate] = useState({ name:"", firmware:"v1.1.0", target:"Factory A", type:"Mandatory" });
+  const [createError, setCreateError] = useState("");
   const selectStyle = { background: T.input, border: `1px solid ${T.border}`, color: T.text };
 
-  const createUpdate = () => {
-    setUpdates([{ ...newUpdate, status:"In Progress", progress:0, created:"Just now" }, ...updates]);
-    setShowCreate(false);
+  const createUpdate = async () => {
+    if (!newUpdate.name) { setCreateError("Update name is required"); return; }
+    try {
+      setCreateError("");
+      await addOtaUpdate(newUpdate);
+      setShowCreate(false);
+      setNewUpdate({ name:"", firmware:"v1.1.0", target:"Factory A", type:"Mandatory" });
+    } catch (err) {
+      setCreateError(err.message);
+    }
   };
 
   const totals = { total:updates.length, success:updates.filter(u=>u.status==="Success").length, inProgress:updates.filter(u=>u.status==="In Progress").length, failed:updates.filter(u=>u.status==="Failed").length };
@@ -1154,12 +1173,12 @@ function OTAUpdatesPage({ t }) {
                 </div>
                 <span className="text-xs font-bold w-8 text-right" style={{ color: T.text }}>{u.progress}%</span>
                 {u.status==="In Progress"&&(
-                  <button onClick={()=>setUpdates(updates.map((x,j)=>j===i?{...x,status:"Failed"}:x))} className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center">
+                  <button onClick={()=>setOtaStatus(updates[i].id, {status:"Failed"})} className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center">
                     <Pause size={11} className="text-red-400"/>
                   </button>
                 )}
                 {u.status==="Failed"&&(
-                  <button onClick={()=>setUpdates(updates.map((x,j)=>j===i?{...x,status:"In Progress",progress:0}:x))} className="w-7 h-7 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 flex items-center justify-center">
+                  <button onClick={()=>setOtaStatus(updates[i].id, {status:"In Progress", progress:0})} className="w-7 h-7 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 flex items-center justify-center">
                     <RotateCcw size={11} className="text-amber-400"/>
                   </button>
                 )}
@@ -1226,6 +1245,7 @@ function OTAUpdatesPage({ t }) {
               </div>
             </div>
             <div className="flex gap-3 pt-2">
+              {createError && <p className="text-xs text-red-400 w-full">{createError}</p>}
               <button onClick={()=>setShowCreate(false)} className="flex-1 py-2.5 rounded-lg text-sm transition-colors" style={{ border: `1px solid ${T.border}`, color: T.muted }}>Cancel</button>
               <button onClick={createUpdate} className="flex-1 py-2.5 rounded-lg text-sm text-white font-bold transition-all flex items-center justify-center gap-2" style={{ background: T.accent }}>
                 <Send size={13}/> Launch Update
@@ -1244,27 +1264,34 @@ function OTAUpdatesPage({ t }) {
 function LogsPage({ t }) {
   const T = t || DARK;
   const isDark = T === DARK;
+  const { logs } = useDashboardData();
   const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
 
   const logSuggestions = [
-    ...LOGS.map(l => l.source),
+    ...logs.map(l => l.source),
     "Checksum mismatch", "ESP32-00128", "ESP32-00127", "MongoDB", "FastAPI",
     "ERROR", "WARN", "INFO", "OTA Service", "MQTT Broker", "Auth Service",
   ];
 
-  const filtered = LOGS.filter(l => {
+  const filtered = logs.filter(l => {
     const matchLevel = filter==="ALL" || l.level===filter;
     const matchSearch = search==="" || l.msg.toLowerCase().includes(search.toLowerCase()) || l.source.toLowerCase().includes(search.toLowerCase());
     return matchLevel && matchSearch;
   });
 
   const levelColor = { INFO:"text-blue-400 bg-blue-500/10", WARN:"text-amber-400 bg-amber-500/10", ERROR:"text-red-400 bg-red-500/10" };
+  const eventCounts = {
+    total: logs.length,
+    info: logs.filter(l=>l.level==="INFO").length,
+    warn: logs.filter(l=>l.level==="WARN").length,
+    error: logs.filter(l=>l.level==="ERROR").length,
+  };
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[["Total Events","10","#3B82F6",Terminal],["Info","6","#3B82F6",Info],["Warnings","2","#F59E0B",AlertTriangle],["Errors","2","#EF4444",XCircle]].map(([l,v,c,Icon])=>(
+        {[["Total Events",eventCounts.total,"#3B82F6",Terminal],["Info",eventCounts.info,"#3B82F6",Info],["Warnings",eventCounts.warn,"#F59E0B",AlertTriangle],["Errors",eventCounts.error,"#EF4444",XCircle]].map(([l,v,c,Icon])=>(
           <Card key={l} className="p-4 flex items-center gap-3" t={T}>
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{background:`${c}22`}}><Icon size={16} style={{color:c}}/></div>
             <div><p className="text-xs" style={{ color: T.muted }}>{l}</p><p className="text-xl font-black" style={{ color: T.text }}>{v}</p></div>
@@ -1325,15 +1352,22 @@ function LogsPage({ t }) {
 function UsersPage({ t }) {
   const T = t || DARK;
   const isDark = T === DARK;
-  const [users, setUsers] = useState(TEAM_MEMBERS);
+  const { users, addUser: addUserApi, removeUser } = useDashboardData();
   const [showAdd, setShowAdd] = useState(false);
   const [newUser, setNewUser] = useState({ name:"", id:"", role:"Operator", email:"", status:"Active", dept:"Engineering", lastLogin:"—" });
+  const [addError, setAddError] = useState("");
   const selectStyle = { background: T.input, border: `1px solid ${T.border}`, color: T.text };
 
-  const addUser = () => {
+  const addUser = async () => {
     if (!newUser.name) return;
-    setUsers([...users, newUser]);
-    setShowAdd(false);
+    try {
+      setAddError("");
+      await addUserApi(newUser);
+      setShowAdd(false);
+      setNewUser({ name:"", id:"", role:"Operator", email:"", status:"Active", dept:"Engineering", lastLogin:"—" });
+    } catch (err) {
+      setAddError(err.message);
+    }
   };
 
   return (
@@ -1386,7 +1420,7 @@ function UsersPage({ t }) {
                   <td className="px-4 py-3">
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-blue-500/20" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}><Edit2 size={12} style={{ color: T.muted }}/></button>
-                      <button onClick={()=>setUsers(users.filter((_,j)=>j!==i))} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-500/20" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}><Trash2 size={12} className="text-red-400"/></button>
+                      <button onClick={()=>removeUser(u.id)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-500/20" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}><Trash2 size={12} className="text-red-400"/></button>
                     </div>
                   </td>
                 </tr>
@@ -1421,6 +1455,7 @@ function UsersPage({ t }) {
               </div>
               <Input label="Initial Password" icon={Lock} type="password" placeholder="Set a password" t={T}/>
             </div>
+            {addError && <p className="text-xs text-red-400">{addError}</p>}
             <div className="flex gap-3 pt-2">
               <button onClick={()=>setShowAdd(false)} className="flex-1 py-2.5 rounded-lg text-sm transition-colors" style={{ border: `1px solid ${T.border}`, color: T.muted }}>Cancel</button>
               <button onClick={addUser} className="flex-1 py-2.5 rounded-lg text-sm text-white font-bold transition-all" style={{ background: T.accent }}>Create User</button>
@@ -1537,6 +1572,7 @@ function ProfilePage({ t }) {
   const T = t || DARK;
   const isDark = T === DARK;
   const sectionBg = isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)";
+  const { users } = useDashboardData();
 
   const privileges = [
     { icon: Shield,      label: "OTA Orchestration",  desc: "Create, manage, and abort OTA update jobs",  granted: true  },
@@ -1658,7 +1694,7 @@ function ProfilePage({ t }) {
               <Users size={15} style={{ color: T.accent }}/> Project Team
             </h3>
             <div className="space-y-3">
-              {TEAM_MEMBERS.map((m,i)=>(
+              {users.map((m,i)=>(
                 <div key={m.id} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${m.name==="Bharat Yogansh" ? "ring-1" : ""}`}
                   style={{ background: m.name==="Bharat Yogansh" ? `${T.accent}12` : sectionBg, ringColor: T.accent }}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
@@ -1718,6 +1754,7 @@ function ProfilePage({ t }) {
 // ─────────────────────────────────────────────────────────────
 function AboutModal({ onClose, t }) {
   const T = t || DARK;
+  const { users } = useDashboardData();
   return (
     <Modal title="About This Project" onClose={onClose} wide t={T}>
       <div className="p-6 space-y-6">
@@ -1731,7 +1768,7 @@ function AboutModal({ onClose, t }) {
         <div>
           <h4 className="text-xs uppercase tracking-widest font-semibold mb-3" style={{ color: T.muted }}>Project Team</h4>
           <div className="grid grid-cols-2 gap-2">
-            {TEAM_MEMBERS.map((m,i)=>(
+            {users.map((m,i)=>(
               <div key={m.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5" style={{ background: isDarkCheck(T) ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", border: `1px solid ${T.border}` }}>
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                   style={{background:["#3B82F6","#10B981","#F59E0B","#8B5CF6"][i]}}>
@@ -1776,7 +1813,8 @@ function NotificationDropdown({ onClose, t }) {
   const T = t || DARK;
   const isDark = T === DARK;
   const [read, setRead] = useState(false);
-  const criticalLogs = LOGS.filter(l => l.level === "ERROR" || l.level === "WARN").slice(0, 4);
+  const { logs } = useDashboardData();
+  const criticalLogs = logs.filter(l => l.level === "ERROR" || l.level === "WARN").slice(0, 4);
 
   return (
     <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl z-50 overflow-hidden"
@@ -1847,6 +1885,9 @@ export default function App() {
   const notifRef = useRef(null);
   const headerSearchRef = useRef(null);
   const [headerDropOpen, setHeaderDropOpen] = useState(false);
+  // Called unconditionally (before the auth early-return below) so the
+  // hook order stays stable across the logged-out → logged-in transition.
+  const { devices } = useDashboardData();
 
   useEffect(() => {
     if (theme === "system") {
@@ -1882,12 +1923,15 @@ export default function App() {
   const T = isDark ? DARK : LIGHT;
 
   const handleLogin = (userData) => { setUser(userData); setAuthed(true); };
-  const handleLogout = () => { setAuthed(false); setUser(null); setActiveNav("dashboard"); };
+  const handleLogout = () => {
+    if (user?.email) apiLogout(user.email).catch(() => {}); // best-effort, don't block UI on it
+    setAuthed(false); setUser(null); setActiveNav("dashboard");
+  };
 
   if (!authed) return <AuthPage onLogin={handleLogin}/>;
 
   const headerSearchFiltered = headerSearch.length > 0
-    ? SEARCH_SUGGESTIONS.filter(s => s.toLowerCase().includes(headerSearch.toLowerCase())).slice(0, 6)
+    ? buildSearchSuggestions(devices).filter(s => s.toLowerCase().includes(headerSearch.toLowerCase())).slice(0, 6)
     : [];
 
   const renderPage = () => {
