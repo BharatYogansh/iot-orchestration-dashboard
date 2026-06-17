@@ -1,16 +1,111 @@
-# React + Vite
+# IoT Device Management & OTA Orchestration System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A centralized, scalable, and secure platform for managing IoT device fleets and orchestrating Over-The-Air (OTA) firmware updates.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+* Device Registration & Management
+* Secure OTA Firmware Updates
+* MQTT-Based Real-Time Communication
+* Device Group Management
+* Firmware Repository
+* JWT Authentication
+* Role-Based Access Control (RBAC)
+* SHA-256 Firmware Verification
+* Real-Time Dashboard Monitoring
+* Dockerized Deployment
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Frontend
 
-## Expanding the ESLint configuration
+* React.js
+* Vite
+* Tailwind CSS
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Backend
+
+* FastAPI
+* Python
+
+### Communication
+
+* MQTT
+* Eclipse Mosquitto
+
+### Databases
+
+* PostgreSQL
+* MongoDB
+
+### Hardware
+
+* ESP32
+
+### DevOps
+
+* Docker
+* Docker Compose
+
+## Architecture
+
+The system follows a four-tier architecture:
+
+1. ESP32 Edge Devices
+2. MQTT Communication Layer
+3. FastAPI Application Layer
+4. PostgreSQL + MongoDB Persistence Layer
+
+## Security Features
+
+* TLS Encrypted MQTT Communication
+* JWT Authentication
+* RBAC Authorization
+* SHA-256 Firmware Integrity Verification
+* Audit Logging
+
+## Future Enhancements
+
+* AI-Based Device Anomaly Detection
+* Delta OTA Updates
+* CI/CD Integration
+* Kubernetes Deployment
+
+
+## Application Screenshots
+
+### Login Page
+
+![Login](docs/screenshots/login.png)
+
+### Dashboard
+
+![Dashboard](docs/screenshots/Dashboard.png)
+
+### Devices
+
+![Devices](docs/screenshots/Devices.png)
+
+### Device Groups
+
+![Device Groups](docs/screenshots/Devices%20Group.png)
+
+### Firmware Management
+
+![Firmware](docs/screenshots/Firmware.png)
+
+### OTA Updates
+
+![OTA Updates](docs/screenshots/OTA%20Updates.png)
+
+### Logs & Alerts
+
+![Logs](docs/screenshots/Logs%20%26%20Alerts.png)
+
+### User Management
+
+![Users](docs/screenshots/Users.png)
+
+### Settings
+
+![Settings](docs/screenshots/Settings.png)
