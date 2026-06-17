@@ -25,3 +25,6 @@ dist-ssr
 temp_vibehire/
 
 .env
+
+__pycache__/
+*.pyc
